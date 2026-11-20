@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cinética de reacciones químicas – Matemáticas 4</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg1:#1b0a3f; --bg2:#0e0624;
+    --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.07);
+    --line:rgba(255,255,255,.09);
+    --text:#f1ecff; --muted:#a99bd0;
+    --magenta:#d946ef; --pink:#ff4d8d; --orange:#ff9a3d; --purple:#8b5cf6; --teal:#35e0c0;
+    --grad:linear-gradient(135deg,#d946ef,#ff4d8d 55%,#ff9a3d);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;min-height:100vh;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       background:radial-gradient(1200px 700px at 80% -10%,#3a1170 0%,transparent 60%),linear-gradient(160deg,var(--bg1),var(--bg2));
+       background-attachment:fixed;line-height:1.45}
+
+  /* ===== Layout ===== */
+  .app{display:grid;grid-template-columns:76px 1fr;min-height:100vh}
+  aside{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 0;
+        background:linear-gradient(180deg,#c026d3,#7c1fb8 45%,#3b0f7a);box-shadow:6px 0 30px rgba(217,70,239,.25)}
+  .avatar{width:44px;height:44px;border-radius:50%;background:#fff;color:#4a1a8a;display:grid;place-items:center;font-weight:800;margin-bottom:14px}
+  aside a{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:#fff;text-decoration:none;font-size:1.25rem;opacity:.8;transition:.2s}
+  aside a:hover{background:rgba(255,255,255,.2);opacity:1}
+  .wrap{padding:22px 26px 40px;max-width:1500px;width:100%;margin:auto}
+
+  /* ===== Top bar ===== */
+  .topbar{display:flex;gap:14px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+  .pill{flex:1;min-width:260px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f6e9d6;color:#2a1450;border-radius:999px;padding:8px 8px 8px 22px}
+  .pill .eqt{font-family:"Cambria Math","Times New Roman",serif;font-size:1.1rem;font-weight:600}
+  .pill button{border:0;border-radius:999px;padding:10px 22px;font-weight:700;color:#fff;background:var(--grad);cursor:pointer}
+  .week{color:var(--muted);font-size:.8rem;text-align:right}
+  .week b{display:block;color:var(--text);font-size:.95rem}
+
+  /* ===== Panels ===== */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(6px)}
+  .panel h2{margin:0 0 14px;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text);font-weight:700}
+  .panel h2 span{color:var(--muted);font-weight:500;letter-spacing:.04em;text-transform:none;margin-left:6px}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;text-align:center}
+  .kpi small{display:flex;justify-content:center;align-items:center;gap:7px;color:var(--muted);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .kpi strong{display:block;font-size:1.55rem;margin:6px 0 2px;font-weight:700}
+  .kpi em{font-style:normal;color:var(--muted);font-size:.72rem}
+  .kpi.tipo strong{font-size:1.05rem;line-height:1.25;min-height:2.6rem;display:grid;place-items:center;
+        background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* Main grid */
+  .grid{display:grid;grid-template-columns:310px 1fr 330px;gap:18px;margin-bottom:18px}
+  .stack{display:flex;flex-direction:column;gap:18px}
+  .chart-box{position:relative;height:340px}
+  .chart-box.sm{height:260px}
+
+  /* Form */
+  label{display:block;font-size:.72rem;color:var(--muted);margin:10px 0 4px;letter-spacing:.04em}
+  input,select{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:rgba(10,3,30,.55);color:var(--text);font-size:.92rem}
+  input:focus,select:focus{outline:2px solid var(--magenta);border-color:transparent}
+  select option{background:#1b0a3f}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hint{font-size:.7rem;color:var(--muted);margin-top:4px}
+  .go{margin-top:16px;width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:.95rem;color:#fff;background:var(--grad);cursor:pointer;box-shadow:0 8px 24px rgba(217,70,239,.35)}
+  .go:hover{filter:brightness(1.08)}
+  .error{display:none;background:rgba(255,77,141,.15);border:1px solid var(--pink);color:#ffc2d9;padding:10px 12px;border-radius:10px;margin-bottom:12px;font-size:.85rem}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:7px 13px;font-size:.78rem;cursor:pointer;transition:.2s}
+  .chip:hover{background:var(--grad);border-color:transparent}
+
+  /* Gauges */
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .gauge{text-align:center}
+  .gauge .cv{position:relative;height:130px}
+  .gauge small{display:block;margin-top:8px;color:var(--muted);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
+
+  /* Analysis tiles */
+  .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .tile{background:rgba(10,3,30,.45);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .tile.full{grid-column:1/-1}
+  .tile small{display:block;color:var(--muted);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+  .tile .v{font-family:"Cambria Math","Times New Roman",serif;font-size:1.08rem;word-break:break-word}
+
+  /* Tables */
+  .tw{overflow:auto;border-radius:14px;border:1px solid var(--line);max-height:420px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  thead th{position:sticky;top:0;background:linear-gradient(90deg,#7c1fb8,#c026d3);color:#fff;text-align:right;font-weight:600;
+           padding:10px 14px;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase}
+  thead th:first-child,tbody td:first-child{text-align:left}
+  tbody td{padding:9px 14px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.035)}
+  tbody tr:hover{background:rgba(217,70,239,.18)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+
+  details summary{cursor:pointer;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:.78rem}
+  details p{color:#d9d0f2;font-size:.92rem;margin:10px 0}
+  .eq{font-family:"Cambria Math","Times New Roman",serif;font-size:1.2rem;text-align:center;padding:12px;background:rgba(10,3,30,.5);border-radius:12px;margin:10px 0}
+  .mono{font-family:"Cambria Math","Times New Roman",serif}
+
+  #resultados{display:none}
+
+  @media(max-width:1250px){.grid{grid-template-columns:300px 1fr}.grid .phase{grid-column:1/-1}.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:900px){
+    .app{grid-template-columns:1fr}
+    aside{display:none}
+    .wrap{padding:14px}
+    .grid,.two{grid-template-columns:1fr}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .gauges{grid-template-columns:repeat(2,1fr)}
+    .tiles{grid-template-columns:1fr}
+  }
+  .cgrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px}
+  .cgrid input[type=range]{padding:0;border:0;background:none;accent-color:#d946ef}
+  .cpills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .cpill{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:5px 12px;font-size:.8rem;display:flex;align-items:center;gap:7px}
+  @media(max-width:900px){.cgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside>
+    <div class="avatar">Σ</div>
+    <a href="#inicio" title="Inicio">🏠</a>
+    <a href="#graficas" title="Gráficas">📈</a>
+    <a href="#colisiones" title="Colisiones">🔬</a>
+    <a href="#analisis" title="Análisis">🧮</a>
+    <a href="#tablas" title="Tablas">📋</a>
+    <a href="#teoria" title="Teoría">📘</a>
+  </aside>
+
+  <div class="wrap" id="inicio">
+
+    <div class="topbar">
+      <div class="pill">
+        <span class="eqt">d[A]/dt = −k·[A]ⁿ</span>
+        <button id="calcTop">Calcular</button>
+      </div>
+      <div class="week">Cinética de reacciones químicas<b>Matemáticas 4</b></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi tipo"><small><span class="dot" style="background:var(--magenta)"></span><span id="kl1">—</span></small><strong id="kv1">—</strong><em id="ku1">—</em></div>
+      <div class="kpi"><small><span class="dot" style="background:var(--orange)"></span><span id="kl2">—</span></small><strong id="kv2">—</strong><em id="ku2">—</em></div>
+      <div class="kpi"><small><span class="dot" style="background:var(--pink)"></span><span id="kl3">—</span></small><strong id="kv3">—</strong><em id="ku3">—</em></div>
+      <div class="kpi"><small><span class="dot" style="background:var(--purple)"></span><span id="kl4">—</span></small><strong id="kv4">—</strong><em id="ku4">—</em></div>
+      <div class="kpi"><small><span class="dot" style="background:var(--teal)"></span><span id="kl5">—</span></small><strong id="kv5">—</strong><em id="ku5">—</em></div>
+    </div>
+
+    <div class="grid" id="graficas">
+      <div class="stack">
+        <div class="panel">
+          <h2>Parámetros</h2>
+          <div class="hint" style="margin:-6px 0 8px">Puedes escribir expresiones: 2*pi, sqrt(2), ln(2)/1600, 1e-3.</div>
+          <div id="error" class="error"></div>
+          <label for="modo">Mecanismo de reacción</label>
+          <select id="modo">
+            <option value="orden">A → P · orden n</option>
+            <option value="rev">A ⇌ B · reversible</option>
+            <option value="consec">A → B → C · consecutiva</option>
+          </select>
+          <label for="A0">[A]₀ · Concentración inicial (M)</label>
+          <input id="A0" type="text" inputmode="text" autocomplete="off" value="1">
+          <div id="gOrden">
+            <div class="row">
+              <div><label for="k">k · constante</label><input id="k" type="text" inputmode="text" autocomplete="off" value="0.1"></div>
+              <div><label for="n">n · orden</label><input id="n" type="text" inputmode="text" autocomplete="off" value="1"></div>
+            </div>
+            <div class="hint">Unidades de k: M<sup>1−n</sup>·s⁻¹. Orden 0, 1, 2 o cualquier n ≥ 0.</div>
+          </div>
+          <div id="gRev" style="display:none">
+            <div class="row">
+              <div><label for="kf">k_f · directa (s⁻¹)</label><input id="kf" type="text" inputmode="text" autocomplete="off" value="0.4"></div>
+              <div><label for="kr">k_r · inversa (s⁻¹)</label><input id="kr" type="text" inputmode="text" autocomplete="off" value="0.1"></div>
+            </div>
+            <label for="B0">[B]₀ · Concentración inicial de B (M)</label>
+            <input id="B0" type="text" inputmode="text" autocomplete="off" value="0">
+          </div>
+          <div id="gConsec" style="display:none">
+            <div class="row">
+              <div><label for="k1">k₁ · A → B (s⁻¹)</label><input id="k1" type="text" inputmode="text" autocomplete="off" value="0.5"></div>
+              <div><label for="k2">k₂ · B → C (s⁻¹)</label><input id="k2" type="text" inputmode="text" autocomplete="off" value="0.1"></div>
+            </div>
+          </div>
+          <label for="tf">Tiempo final (s)</label>
+          <input id="tf" type="text" inputmode="text" autocomplete="off" value="40">
+          <button class="go" id="go">Calcular y simular</button>
+        </div>
+        <div class="panel">
+          <h2>Ejemplos</h2>
+          <div class="chips">
+            <button class="chip" data-ej="o1">Orden 1</button>
+            <button class="chip" data-ej="o2">Orden 2</button>
+            <button class="chip" data-ej="o0">Orden 0</button>
+            <button class="chip" data-ej="rev">Reversible</button>
+            <button class="chip" data-ej="c1">Consecutiva k₁ &gt; k₂</button>
+            <button class="chip" data-ej="c2">Consecutiva k₁ &lt; k₂</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Concentraciones vs tiempo <span>línea = solución exacta · puntos = Runge-Kutta 4</span></h2>
+        <div class="chart-box" style="height:520px"><canvas id="cT"></canvas></div>
+      </div>
+
+      <div class="stack phase">
+        <div class="panel">
+          <h2 id="hP">Plano de fase</h2>
+          <div class="chart-box sm"><canvas id="cP"></canvas></div>
+        </div>
+        <div class="panel">
+          <h2>Rapidez de cambio <span>d[X]/dt vs t</span></h2>
+          <div class="chart-box sm"><canvas id="cD"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="colisiones" style="margin-bottom:18px">
+      <h2>Simulación de colisiones <span>estilo PhET · A + BC → AB + C · la reacción ocurre solo si el choque tiene energía ≥ Eₐ</span></h2>
+      <div class="cgrid">
+        <div>
+          <canvas id="cvBox" width="520" height="420" style="width:100%;height:auto;border-radius:14px;background:rgba(10,3,30,.45)"></canvas>
+          <div class="cpills" id="cPills"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <button class="chip" onclick="colAdd(0)">+10 A</button>
+            <button class="chip" onclick="colAdd(1)">+10 BC</button>
+            <button class="chip" onclick="colAdd(2)">+10 AB</button>
+            <button class="chip" onclick="colAdd(3)">+10 C</button>
+            <button class="chip" id="cPlay" onclick="colToggle()">⏸ Pausar</button>
+            <button class="chip" onclick="colReset()">↺ Reiniciar</button>
+          </div>
+        </div>
+        <div class="stack">
+          <div>
+            <label for="cT">Temperatura: <b id="cTv"></b> <span class="hint">(medida: <b id="cTm"></b>)</span></label>
+            <input id="cT" type="range" min="100" max="1000" step="10" value="300">
+            <label for="cEa">Energía de activación Eₐ: <b id="cEav"></b></label>
+            <input id="cEa" type="range" min="5" max="40" step="1" value="15">
+            <label for="cDH">Entalpía de reacción ΔH: <b id="cDHv"></b></label>
+            <input id="cDH" type="range" min="-20" max="20" step="1" value="-10">
+            <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="cRev" type="checkbox" style="width:auto" checked> Permitir reacción inversa (AB + C → A + BC)</label>
+          </div>
+          <canvas id="cvEn" width="320" height="230" style="width:100%;height:auto;border-radius:14px;background:rgba(10,3,30,.45)"></canvas>
+          <div class="tiles">
+            <div class="tile"><small>Factor de Arrhenius e^(−Eₐ/RT)</small><div class="v" id="cArr"></div></div>
+            <div class="tile"><small>Choques A+BC efectivos</small><div class="v" id="cEff"></div></div>
+          </div>
+        </div>
+      </div>
+      <canvas id="cvHist" width="1100" height="190" style="width:100%;height:auto;border-radius:14px;background:rgba(10,3,30,.45);margin-top:14px"></canvas>
+      <div class="hint">Cada molécula es un disco que rebota en las paredes y en las demás. Si chocan A y BC con energía cinética relativa ≥ Eₐ, reaccionan y se separan AB y C. Sube la temperatura: más choques superan la barrera y la reacción se acelera (Arrhenius). Con ΔH &lt; 0 la reacción libera energía y el gas se calienta.</div>
+    </div>
+
+    <div id="resultados">
+      <div class="panel" style="margin-bottom:18px">
+        <h2>Simulación en vivo <span>cada punto es una molécula que reacciona al azar con la probabilidad que da la ecuación diferencial</span></h2>
+        <canvas id="simCv" width="1200" height="460" style="width:100%;height:auto;border-radius:14px;background:rgba(10,3,30,.45)"></canvas>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+          <button class="chip" id="simPlay" onclick="simTogglePlay()">⏸ Pausar</button>
+          <button class="chip" onclick="simReset()">↺ Reiniciar</button>
+          <select id="simSpeed" style="width:auto"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select>
+        </div>
+        <div class="hint">Las moléculas se mueven y, en cada instante, cada una cambia de especie con probabilidad 1 − e^(−r·Δt), donde r es la constante de velocidad que le corresponde. Las líneas continuas son la simulación al azar y las punteadas son la solución exacta. El anillo marca una reacción.</div>
+      </div>
+
+      <div class="panel" style="margin-bottom:18px">
+        <h2>Indicadores</h2>
+        <div class="gauges">
+          <div class="gauge" id="gb1"><div class="cv"><canvas id="g1"></canvas></div><small id="gl1"></small></div>
+          <div class="gauge" id="gb2"><div class="cv"><canvas id="g2"></canvas></div><small id="gl2"></small></div>
+          <div class="gauge" id="gb3"><div class="cv"><canvas id="g3"></canvas></div><small id="gl3"></small></div>
+          <div class="gauge" id="gb4"><div class="cv"><canvas id="g4"></canvas></div><small id="gl4"></small></div>
+        </div>
+      </div>
+
+      <div class="panel" id="analisis" style="margin-bottom:18px">
+        <h2>Análisis de la ecuación diferencial</h2>
+        <div class="tiles">
+          <div class="tile"><small>Ecuación diferencial</small><div class="v" id="ed"></div></div>
+          <div class="tile"><small id="tcl">Tiempo característico</small><div class="v" id="tc"></div></div>
+          <div class="tile full"><small>Solución analítica</small><div class="v" id="sol"></div></div>
+          <div class="tile full"><small>Procedimiento</small><div class="v" id="proc"></div></div>
+          <div class="tile full"><small>Error de Runge-Kutta 4 frente a la solución exacta</small><div class="v" id="err"></div></div>
+        </div>
+      </div>
+
+      <div class="two" id="tablas">
+        <div class="panel">
+          <h2>Resumen de valores</h2>
+          <div class="tw"><table>
+            <thead><tr><th>Magnitud</th><th>Valor</th><th>Unidad</th></tr></thead>
+            <tbody id="claves"></tbody>
+          </table></div>
+        </div>
+        <div class="panel">
+          <h2>Tabla de valores <span>11 puntos</span></h2>
+          <div class="tw"><table>
+            <thead><tr><th>t (s)</th><th id="thA">[A]</th><th id="thB">[B]</th><th id="thC">[C]</th></tr></thead>
+            <tbody id="tabla"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="teoria">
+      <details>
+        <summary>📘 Teoría · ¿de dónde salen las ecuaciones?</summary>
+        <p>Según la <b>ley de acción de masas</b>, la rapidez de una reacción es proporcional a las concentraciones de los reactivos elevadas a su orden: <span class="mono">r = k·[A]ⁿ</span>. Como la rapidez es la derivada de la concentración, cada mecanismo es una <b>ecuación diferencial</b>.</p>
+        <div class="eq">d[A]/dt = −k·[A]ⁿ</div>
+        <p>Separando variables y con <span class="mono">[A](0) = [A]₀</span>:</p>
+        <p>• <b>n = 0</b>: <span class="mono">[A] = [A]₀ − kt</span> (recta, la reacción termina en tiempo finito).<br>
+           • <b>n = 1</b>: <span class="mono">[A] = [A]₀·e^(−kt)</span> (exponencial, la misma ecuación del decaimiento radiactivo).<br>
+           • <b>n = 2</b>: <span class="mono">1/[A] = 1/[A]₀ + kt</span>.<br>
+           • <b>n ≠ 1</b>: <span class="mono">[A]^(1−n) = [A]₀^(1−n) + (n−1)·k·t</span>.</p>
+        <p><b>Reacción reversible A ⇌ B:</b> <span class="mono">d[A]/dt = −k_f[A] + k_r[B]</span>. Como [A] + [B] es constante, se reduce a una ecuación lineal cuya solución se acerca a un equilibrio con <span class="mono">K = k_f/k_r</span>.</p>
+        <p><b>Reacciones consecutivas A → B → C:</b> es un sistema de tres ecuaciones lineales. [A] decae como exponencial, [B] sube, alcanza un máximo y baja, y [C] crece en forma de S.</p>
+        <p><b>Ecuación de Arrhenius:</b> la constante depende de la temperatura, <span class="mono">k = A·e^(−Eₐ/RT)</span>. Subir la temperatura aumenta k y acelera la reacción.</p>
+        <p><b>Teoría de colisiones:</b> una reacción ocurre solo cuando dos moléculas chocan con energía ≥ Eₐ. La fracción de choques efectivos es del orden de e^(−Eₐ/RT), por eso k crece con la temperatura. La simulación de colisiones muestra exactamente esto.</p>
+        <p>Numéricamente se escribe como sistema de primer orden y se integra con Runge-Kutta de orden 4. La página compara esa solución con la exacta y muestra el error.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ---------- Números y expresiones (pi, e, sqrt, ln...) ---------- */
+function evalExpr(src){
+  let s = String(src).toLowerCase().replace(/\s+/g, "").replace(/,/g, ".").replace(/π/g, "pi");
+  if (!s) return NaN;
+  if (/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/.test(s)) return parseFloat(s);
+  const toks = s.match(/\d+\.?\d*(?:e[+-]?\d+)?|\.\d+|[a-z]+|\*\*|[-+*/^()]/g);
+  if (!toks || toks.join("") !== s) return NaN;
+  const consts = { pi: Math.PI, e: Math.E };
+  const funcs = { sin: Math.sin, sen: Math.sin, cos: Math.cos, tan: Math.tan, exp: Math.exp,
+                  sqrt: Math.sqrt, abs: Math.abs, ln: Math.log, log: Math.log10 };
+  let out = "", prev = null;
+  for (const t of toks){
+    let kind;
+    if (/^[\d.]/.test(t)) kind = "num";
+    else if (Object.prototype.hasOwnProperty.call(consts, t)) kind = "const";
+    else if (Object.prototype.hasOwnProperty.call(funcs, t)) kind = "func";
+    else if (/^[a-z]+$/.test(t)) return NaN;
+    else if (t === "(") kind = "(";
+    else if (t === ")") kind = ")";
+    else kind = "op";
+    const startsValue = kind === "num" || kind === "const" || kind === "func" || kind === "(";
+    const endsValue = prev === "num" || prev === "const" || prev === ")";
+    if (startsValue && endsValue) out += "*";
+    if (kind === "const") out += "(" + consts[t] + ")";
+    else if (kind === "func") out += "F." + t;
+    else out += (t === "^" ? "**" : t);
+    prev = kind;
+  }
+  try {
+    const r = new Function("F", "return (" + out + ");")(funcs);
+    return (typeof r === "number" && isFinite(r)) ? r : NaN;
+  } catch(e){ return NaN; }
+}
+function num(id){ return evalExpr($(id).value); }
+
+
+/* ---------- Formato ---------- */
+function fmt(x, d = 5){
+  if (!isFinite(x)) return "—";
+  if (x === 0) return "0";
+  const a = Math.abs(x);
+  if (a < 1e-4 || a >= 1e6) return x.toExponential(3);
+  return String(Number(x.toPrecision(d)));
+}
+function signed(x){ return (x < 0 ? "− " : "+ ") + fmt(Math.abs(x)); }
+
+/* ---------- E(t) personalizada ---------- */
+/* ---------- Gráficas ---------- */
+Chart.defaults.color = "#a99bd0";
+Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+const charts = {};
+const GRID = "rgba(255,255,255,.07)";
+
+function reducir(xs, ys, max = 900){
+  const step = Math.max(1, Math.floor(xs.length / max));
+  const d = [];
+  for (let k = 0; k < xs.length; k += step) d.push({x: xs[k], y: ys[k]});
+  if ((xs.length - 1) % step !== 0) d.push({x: xs[xs.length-1], y: ys[ys.length-1]});
+  return d;
+}
+function gradient(c1, c2){
+  return ctx => {
+    const a = ctx.chart.chartArea;
+    if (!a) return c1;
+    const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    return g;
+  };
+}
+function lineStyle(color, fillTop, fillBot, fill = true){
+  return { borderColor: color, borderWidth: 2.2, pointRadius: 0, tension: .25, fill,
+           backgroundColor: gradient(fillTop, fillBot) };
+}
+function baseOpts(xl, yl){
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: "nearest", intersect: false },
+    plugins: { legend: { labels: { usePointStyle: true, boxWidth: 8 } },
+               tooltip: { backgroundColor: "#1b0a3f", borderColor: "#d946ef", borderWidth: 1 } },
+    scales: {
+      x: { type: "linear", title: { display: !!xl, text: xl }, grid: { color: GRID } },
+      y: { title: { display: !!yl, text: yl }, grid: { color: GRID } }
+    }
+  };
+}
+function mk(id, cfg){ if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
+
+function gauge(id, pct, texto, c1, c2){
+  const v = Math.max(0, Math.min(100, pct));
+  mk(id, {
+    type: "doughnut",
+    data: { datasets: [{ data: [v, 100 - v], borderWidth: 0,
+      backgroundColor: ctx => {
+        const a = ctx.chart.chartArea; if (!a) return c1;
+        if (ctx.dataIndex === 1) return "rgba(255,255,255,.08)";
+        const g = ctx.chart.ctx.createLinearGradient(a.left, a.top, a.right, a.bottom);
+        g.addColorStop(0, c1); g.addColorStop(1, c2); return g;
+      } }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "76%", animation: false,
+               plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+    plugins: [{ id: "ct", afterDraw(ch){
+      const {ctx, chartArea:a} = ch; ctx.save();
+      ctx.fillStyle = "#f1ecff"; ctx.font = "700 20px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(texto, (a.left + a.right)/2, (a.top + a.bottom)/2); ctx.restore();
+    } }]
+  });
+}
+
+let ultimo = null;
+const COL = ["#ff9a3d", "#d946ef", "#35e0c0"];
+
+/* ---------- Lectura y validación ---------- */
+function leer(){
+  const v = id => num(id), m = $("modo").value;
+  const p = { m, A0: v("A0"), tf: v("tf") };
+  if (!isFinite(p.A0) || !isFinite(p.tf)) throw new Error("Completa todos los campos con números válidos.");
+  if (p.A0 <= 0) throw new Error("La concentración inicial [A]₀ debe ser mayor que 0.");
+  if (p.tf <= 0) throw new Error("El tiempo final debe ser mayor que 0.");
+  if (m === "orden"){
+    p.k = v("k"); p.n = v("n");
+    if (!isFinite(p.k) || !isFinite(p.n)) throw new Error("Completa k y n con números válidos.");
+    if (p.k <= 0) throw new Error("La constante k debe ser mayor que 0.");
+    if (p.n < 0) throw new Error("El orden n no puede ser negativo.");
+  } else if (m === "rev"){
+    p.kf = v("kf"); p.kr = v("kr"); p.B0 = v("B0");
+    if (!isFinite(p.kf) || !isFinite(p.kr) || !isFinite(p.B0)) throw new Error("Completa k_f, k_r y [B]₀ con números válidos.");
+    if (p.kf <= 0 || p.kr <= 0) throw new Error("Las constantes k_f y k_r deben ser mayores que 0.");
+    if (p.B0 < 0) throw new Error("[B]₀ no puede ser negativa.");
+  } else {
+    p.k1 = v("k1"); p.k2 = v("k2");
+    if (!isFinite(p.k1) || !isFinite(p.k2)) throw new Error("Completa k₁ y k₂ con números válidos.");
+    if (p.k1 <= 0 || p.k2 <= 0) throw new Error("Las constantes k₁ y k₂ deben ser mayores que 0.");
+  }
+  return p;
+}
+
+/* ---------- Modelo: EDO (f), solución exacta (ex) ---------- */
+function modelo(p){
+  const A0 = p.A0;
+  if (p.m === "orden"){
+    const {k, n} = p;
+    const ex = t => {
+      let A;
+      if (n === 1) A = A0 * Math.exp(-k*t);
+      else { const b = Math.pow(A0, 1-n) + (n-1)*k*t; A = b <= 0 ? 0 : Math.pow(b, 1/(1-n)); }
+      return [A, A0 - A];
+    };
+    const f = (t, y) => { const r = y[0] > 0 ? k*Math.pow(y[0], n) : 0; return [-r, r]; };
+    return { f, ex, y0: [A0, 0], names: ["A (reactivo)", "P (producto)"], tot: A0 };
+  }
+  if (p.m === "rev"){
+    const {kf, kr, B0} = p, S = kf + kr, tot = A0 + B0, Ae = kr*tot/S;
+    const ex = t => { const A = Ae + (A0 - Ae)*Math.exp(-S*t); return [A, tot - A]; };
+    const f = (t, y) => { const r = kf*y[0] - kr*y[1]; return [-r, r]; };
+    return { f, ex, y0: [A0, B0], names: ["A", "B"], tot, Ae, S };
+  }
+  const {k1, k2} = p, igual = Math.abs(k1 - k2) < 1e-9*Math.max(k1, k2);
+  const ex = t => {
+    const A = A0*Math.exp(-k1*t);
+    const B = igual ? A0*k1*t*Math.exp(-k1*t) : A0*k1/(k2 - k1)*(Math.exp(-k1*t) - Math.exp(-k2*t));
+    return [A, B, A0 - A - B];
+  };
+  const f = (t, y) => [-k1*y[0], k1*y[0] - k2*y[1], k2*y[1]];
+  const tmax = igual ? 1/k1 : Math.log(k1/k2)/(k1 - k2);
+  return { f, ex, y0: [A0, 0, 0], names: ["A", "B", "C"], tot: A0, tmax, Bmax: ex(tmax)[1] };
+}
+
+/* ---------- Runge-Kutta 4 para sistemas ---------- */
+function rk4(M, tf, N = 2000){
+  const h = tf/N, add = (y, k, c) => y.map((v, i) => v + c*k[i]);
+  let y = M.y0.slice(), t = 0;
+  const T = [0], Y = [y.slice()];
+  for (let s = 0; s < N; s++){
+    const k1 = M.f(t, y), k2 = M.f(t + h/2, add(y, k1, h/2)), k3 = M.f(t + h/2, add(y, k2, h/2)), k4 = M.f(t + h, add(y, k3, h));
+    y = y.map((v, i) => v + h/6*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]));
+    t += h; T.push(t); Y.push(y.slice());
+  }
+  return {T, Y};
+}
+
+/* ---------- Texto del análisis ---------- */
+function analisis(p, M){
+  const o = {};
+  if (p.m === "orden"){
+    const {k, n, A0} = p;
+    o.ed = `d[A]/dt = −k·[A]^n = −${fmt(k)}·[A]^${fmt(n,3)}`;
+    o.th = n === 1 ? Math.LN2/k : (Math.pow(2, n-1) - 1)/((n-1)*k*Math.pow(A0, n-1));
+    o.tcl = "Vida media t½"; o.tc = `t½ = ${fmt(o.th)} s` + (n < 1 ? `  ·  la reacción termina en t = ${fmt(Math.pow(A0, 1-n)/((1-n)*k))} s` : "");
+    o.sol = n === 1 ? `[A](t) = ${fmt(A0)}·e^(−${fmt(k)}·t)`
+          : n === 0 ? `[A](t) = ${fmt(A0)} − ${fmt(k)}·t   (hasta que llega a 0)`
+          : n === 2 ? `[A](t) = ${fmt(A0)} / (1 + ${fmt(k*A0)}·t)`
+          : `[A](t) = [${fmt(Math.pow(A0, 1-n))} + ${fmt((n-1)*k)}·t]^(1/(1−n))`;
+    o.proc = n === 1 ? "d[A]/[A] = −k dt  →  ln[A] = −kt + C  →  [A] = [A]₀·e^(−kt)."
+           : `d[A]/[A]ⁿ = −k dt  →  [A]^(1−n)/(1−n) = −kt + C. Con [A](0) = [A]₀ se despeja [A](t).`;
+  } else if (p.m === "rev"){
+    const {kf, kr} = p, K = kf/kr;
+    o.ed = `d[A]/dt = −${fmt(kf)}·[A] + ${fmt(kr)}·[B]`;
+    o.tcl = "Tiempo de relajación τ"; o.tc = `τ = 1/(k_f+k_r) = ${fmt(1/M.S)} s  ·  K = ${fmt(K)}`;
+    o.sol = `[A](t) = ${fmt(M.Ae)} + (${fmt(p.A0 - M.Ae)})·e^(−${fmt(M.S)}·t),   [B] = ${fmt(M.tot)} − [A]`;
+    o.proc = "Como [A] + [B] = [A]₀ + [B]₀ es constante, queda d[A]/dt = −(k_f+k_r)[A] + k_r·total, lineal de primer orden. Con factor integrante se obtiene un equilibrio [A]e = k_r·total/(k_f+k_r).";
+  } else {
+    const {k1, k2, A0} = p;
+    o.ed = `d[A]/dt = −${fmt(k1)}[A],  d[B]/dt = ${fmt(k1)}[A] − ${fmt(k2)}[B],  d[C]/dt = ${fmt(k2)}[B]`;
+    o.tcl = "Máximo del intermedio B"; o.tc = `t máx = ${fmt(M.tmax)} s  ·  [B] máx = ${fmt(M.Bmax)} M`;
+    o.sol = `[A] = ${fmt(A0)}·e^(−${fmt(k1)}t);  [B] = ${fmt(A0*k1)}/(${fmt(k2-k1)})·(e^(−${fmt(k1)}t) − e^(−${fmt(k2)}t));  [C] = ${fmt(A0)} − [A] − [B]`;
+    o.proc = "[A] se resuelve directo. Luego [B] cumple d[B]/dt + k₂[B] = k₁[A]₀e^(−k₁t), lineal de primer orden con factor integrante e^(k₂t). [C] sale de la conservación de materia. El máximo de [B] se encuentra con d[B]/dt = 0: t = ln(k₁/k₂)/(k₁−k₂).";
+  }
+  return o;
+}
+
+/* ---------- Dibujo de gráficas ---------- */
+function dibujar(){
+  if (!ultimo) return;
+  const {p, M, T, Ye, Yn} = ultimo, ns = M.names.length, N = T.length;
+  const ds = [], st = Math.max(1, Math.floor(N/28));
+  for (let s = 0; s < ns; s++){
+    ds.push({ label: M.names[s] + " (exacta)", data: reducir(T, Ye.map(y => y[s]), 600), ...lineStyle(COL[s], "rgba(0,0,0,0)", "rgba(0,0,0,0)", false) });
+    ds.push({ label: M.names[s] + " (RK4)", data: T.map((t, i) => ({x: t, y: Yn[i][s]})).filter((_, i) => i % st === 0),
+              showLine: false, pointRadius: 3.5, borderColor: COL[s], backgroundColor: COL[s] });
+  }
+  mk("cT", { type: "line", options: baseOpts("t (s)", "concentración (M)"), data: { datasets: ds } });
+
+  let px, py, xl, yl, tt;
+  if (p.m === "orden"){ px = Ye.map(y => y[0]); py = Ye.map((y, i) => -M.f(T[i], y)[0]); xl = "[A] (M)"; yl = "r = −d[A]/dt (M/s)"; tt = "Rapidez vs concentración"; }
+  else if (p.m === "rev"){ px = Ye.map(y => y[0]); py = Ye.map((y, i) => M.f(T[i], y)[0]); xl = "[A] (M)"; yl = "d[A]/dt (M/s)"; tt = "d[A]/dt vs [A] · cruza 0 en el equilibrio"; }
+  else { px = Ye.map(y => y[0]); py = Ye.map(y => y[1]); xl = "[A] (M)"; yl = "[B] (M)"; tt = "Trayectoria [B] vs [A]"; }
+  $("hP").innerHTML = "Plano de fase <span>" + tt + "</span>";
+  const o2 = baseOpts(xl, yl); o2.plugins.legend = { display: false };
+  mk("cP", { type: "line", options: o2, data: { datasets: [{ label: "trayectoria", data: reducir(px, py, 500), ...lineStyle("#8b5cf6", "rgba(139,92,246,.45)", "rgba(139,92,246,.02)") }] } });
+
+  const dd = [];
+  for (let s = 0; s < ns; s++) dd.push({ label: "d[" + M.names[s][0] + "]/dt", data: reducir(T, Ye.map((y, i) => M.f(T[i], y)[s]), 500), ...lineStyle(COL[s], "rgba(0,0,0,0)", "rgba(0,0,0,0)", false) });
+  mk("cD", { type: "line", options: baseOpts("t (s)", "M/s"), data: { datasets: dd } });
+
+  // indicadores circulares
+  const fin = Yn[N-1], g = [];
+  for (let s = 0; s < ns; s++) g.push([fin[s]/M.tot*100, `[${M.names[s][0]}] final / total`, COL[s]]);
+  g.push([fin.reduce((a, b) => a + b, 0)/M.tot*100, "Conservación de materia", "#8b5cf6"]);
+  for (let j = 0; j < 4; j++){
+    $("gb" + (j+1)).style.display = g[j] ? "" : "none";
+    if (g[j]){ gauge("g" + (j+1), g[j][0], fmt(g[j][0], 4) + " %", g[j][2], "#d946ef"); $("gl" + (j+1)).textContent = g[j][1]; }
+  }
+}
+
+/* ---------- Calcular ---------- */
+function calcular(){
+  const err = $("error"); err.style.display = "none";
+  try{
+    const p = leer(), M = modelo(p), an = analisis(p, M), sol = rk4(M, p.tf);
+    const T = sol.T, Ye = T.map(t => M.ex(t)), Yn = sol.Y, ns = M.names.length;
+    let e = 0; Yn.forEach((y, i) => y.forEach((v, s) => { e = Math.max(e, Math.abs(v - Ye[i][s])); }));
+    ultimo = {p, M, T, Ye, Yn};
+    $("resultados").style.display = "block";
+    const fin = Ye[T.length-1], f = x => fmt(x, 4);
+    let K;
+    if (p.m === "orden") K = [["Orden n", fmt(p.n, 3), "ley de velocidad"], ["t½", f(an.th), "s · vida media"], ["k", f(p.k), "M^(1−n)·s⁻¹"], ["[A] final", f(fin[0]), "M"], ["Consumido", f((1 - fin[0]/p.A0)*100) + " %", "de [A]₀"]];
+    else if (p.m === "rev") K = [["Constante K", f(p.kf/p.kr), "k_f / k_r"], ["τ", f(1/M.S), "s · tiempo de relajación"], ["[A] equilibrio", f(M.Ae), "M"], ["[B] equilibrio", f(M.tot - M.Ae), "M"], ["Distancia final", f(Math.abs(fin[0] - M.Ae)), "M al equilibrio"]];
+    else K = [["t máx de B", f(M.tmax), "s"], ["[B] máx", f(M.Bmax), "M"], ["[C] final", f(fin[2]), "M"], ["k₁ / k₂", f(p.k1/p.k2), "razón"], ["Paso lento", p.k1 < p.k2 ? "A → B" : p.k1 > p.k2 ? "B → C" : "iguales", "limita formar C"]];
+    K.forEach((r, j) => { $("kl" + (j+1)).textContent = r[0]; $("kv" + (j+1)).textContent = r[1]; $("ku" + (j+1)).textContent = r[2]; });
+
+    $("ed").textContent = an.ed; $("tcl").textContent = an.tcl; $("tc").textContent = an.tc;
+    $("sol").textContent = an.sol; $("proc").textContent = an.proc;
+    $("err").textContent = `Error máximo = ${fmt(e, 3)} M (${fmt(e/M.tot*100, 3)} % de la concentración total) con 2000 pasos. Por eso los puntos RK4 caen sobre las líneas exactas.`;
+
+    const filas = [["[A]₀", fmt(p.A0), "M"]];
+    if (p.m === "orden") filas.push(["Constante k", fmt(p.k), "M^(1−n)·s⁻¹"], ["Orden n", fmt(p.n, 3), "—"], ["Vida media t½", fmt(an.th), "s"]);
+    else if (p.m === "rev") filas.push(["[B]₀", fmt(p.B0), "M"], ["k_f", fmt(p.kf), "s⁻¹"], ["k_r", fmt(p.kr), "s⁻¹"], ["K = k_f/k_r", fmt(p.kf/p.kr), "—"], ["τ", fmt(1/M.S), "s"]);
+    else filas.push(["k₁", fmt(p.k1), "s⁻¹"], ["k₂", fmt(p.k2), "s⁻¹"], ["t máx de B", fmt(M.tmax), "s"], ["[B] máx", fmt(M.Bmax), "M"]);
+    M.names.forEach((nm, s) => filas.push([`[${nm[0]}] en t = ${fmt(p.tf)}`, fmt(fin[s]), "M"]));
+    $("claves").innerHTML = filas.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+
+    $("thA").textContent = "[A] (M)"; $("thB").textContent = (p.m === "orden" ? "[P]" : "[B]") + " (M)"; $("thC").textContent = "[C] (M)";
+    let h = "";
+    for (let j = 0; j <= 10; j++){
+      const i = Math.round(j*(T.length-1)/10), y = Ye[i];
+      h += `<tr><td>${fmt(T[i])}</td><td>${fmt(y[0])}</td><td>${fmt(y[1])}</td><td>${ns > 2 ? fmt(y[2]) : "—"}</td></tr>`;
+    }
+    $("tabla").innerHTML = h;
+    dibujar();
+    simReset();
+  } catch(ex){
+    err.textContent = "⚠ " + ex.message; err.style.display = "block";
+  }
+}
+
+/* ---------- Simulación animada (moléculas que reaccionan al azar) ---------- */
+const sim = {ps: [], hist: [], t: 0, play: true, last: 0, raf: 0, N: 300, cnt: [0, 0, 0]};
+function simReset(){
+  if (!ultimo) return;
+  const {M} = ultimo, N = sim.N;
+  const c0 = M.y0.map(v => Math.round(N*v/M.tot));
+  c0[0] = N - c0.slice(1).reduce((a, b) => a + b, 0);
+  sim.ps = [];
+  c0.forEach((n, s) => { for (let j = 0; j < n; j++) sim.ps.push({x: Math.random(), y: Math.random(), vx: (Math.random() - .5)*.5, vy: (Math.random() - .5)*.5, s, f: 0}); });
+  sim.cnt = c0.concat([0, 0, 0]).slice(0, 3); sim.hist = [[0, ...c0]];
+  sim.t = 0; sim.play = true; sim.last = 0;
+  $("simPlay").textContent = "⏸ Pausar";
+  cancelAnimationFrame(sim.raf); sim.raf = requestAnimationFrame(simLoop);
+}
+function simTogglePlay(){
+  sim.play = !sim.play;
+  if (sim.play && sim.t >= ultimo.p.tf) simReset();
+  $("simPlay").textContent = sim.play ? "⏸ Pausar" : "▶ Reproducir";
+}
+function simLoop(ts){
+  if (!ultimo) return;
+  const {p, M} = ultimo, N = sim.N, tot = M.tot, ns = M.names.length;
+  const dt = sim.last ? Math.min((ts - sim.last)/1000, .1) : 0, sp = +$("simSpeed").value;
+  sim.last = ts;
+  if (sim.play){
+    const ds = dt*sp*p.tf/15, pr = r => 1 - Math.exp(-r*ds), mv = dt*(.5 + sp);
+    sim.t = Math.min(p.tf, sim.t + ds);
+    let reglas;   // [de, a, probabilidad]
+    if (p.m === "orden") reglas = [[0, 1, pr(p.k*Math.pow(Math.max(sim.cnt[0], 1)/N*tot, p.n - 1))]];
+    else if (p.m === "rev") reglas = [[0, 1, pr(p.kf)], [1, 0, pr(p.kr)]];
+    else reglas = [[0, 1, pr(p.k1)], [1, 2, pr(p.k2)]];
+    const c = [0, 0, 0];
+    sim.ps.forEach(a => {
+      for (const r of reglas) if (a.s === r[0] && Math.random() < r[2]){ a.s = r[1]; a.f = 1; break; }
+      a.x += a.vx*mv; a.y += a.vy*mv;
+      if (a.x < 0 || a.x > 1){ a.vx = -a.vx; a.x = Math.min(1, Math.max(0, a.x)); }
+      if (a.y < 0 || a.y > 1){ a.vy = -a.vy; a.y = Math.min(1, Math.max(0, a.y)); }
+      c[a.s]++;
+    });
+    sim.cnt = c; sim.hist.push([sim.t, ...c.slice(0, ns)]);
+    if (sim.t >= p.tf){ sim.play = false; $("simPlay").textContent = "▶ Reproducir"; }
+  }
+  const c = $("simCv").getContext("2d");
+  c.clearRect(0, 0, 1200, 460); c.lineWidth = 1;
+  c.fillStyle = "rgba(255,255,255,.04)"; c.fillRect(10, 10, 420, 440);
+  sim.ps.forEach(a => {
+    const x = 30 + a.x*380, y = 30 + a.y*400;
+    c.fillStyle = COL[a.s]; c.beginPath(); c.arc(x, y, 6, 0, 7); c.fill();
+    if (a.f > 0){
+      c.strokeStyle = `rgba(255,255,255,${a.f})`; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 6 + (1 - a.f)*16, 0, 7); c.stroke();
+      c.lineWidth = 1; a.f = Math.max(0, a.f - dt*2.5);
+    }
+  });
+  const gx = 490, gy = 100, gw = 670, gh = 300, ym = tot*1.05;
+  const X = t => gx + t/p.tf*gw, Y = v => gy + gh - v/ym*gh;
+  c.strokeStyle = "rgba(255,255,255,.2)"; c.strokeRect(gx, gy, gw, gh);
+  c.font = "15px system-ui"; c.fillStyle = "#a99bd0";
+  c.fillText("t (s)", gx + gw - 30, gy + gh + 20); c.fillText("concentración (M)", gx, gy - 8);
+  for (let s = 0; s < ns; s++){
+    c.strokeStyle = COL[s]; c.lineWidth = 2; c.setLineDash([8, 6]); c.beginPath();
+    for (let n = 0; n <= 120; n++){ const t = p.tf*n/120, y = M.ex(t)[s]; n ? c.lineTo(X(t), Y(y)) : c.moveTo(X(t), Y(y)); }
+    c.stroke(); c.setLineDash([]);
+    c.lineWidth = 3; c.beginPath();
+    sim.hist.forEach((h, n) => n ? c.lineTo(X(h[0]), Y(h[s+1]/N*tot)) : c.moveTo(X(h[0]), Y(h[s+1]/N*tot)));
+    c.stroke();
+    c.fillStyle = COL[s]; c.beginPath(); c.arc(gx + 10 + s*170, gy + gh + 42, 6, 0, 7); c.fill();
+    c.fillStyle = "#a99bd0"; c.fillText(M.names[s], gx + 22 + s*170, gy + gh + 47);
+  }
+  c.lineWidth = 1;
+  c.font = "bold 22px system-ui"; c.fillStyle = "#f1ecff"; c.fillText(`t = ${fmt(sim.t, 4)} s`, gx, 34);
+  c.font = "18px system-ui"; c.fillStyle = "#a99bd0";
+  c.fillText(`Moléculas: ${M.names.map((nm, s) => nm[0] + " = " + sim.cnt[s]).join("  ·  ")}  (de ${N})`, gx, 64);
+  c.fillText(`[${M.names[0][0]}] simulada: ${fmt(sim.cnt[0]/N*tot, 4)} M  ·  exacta: ${fmt(M.ex(sim.t)[0], 4)} M`, gx, 88);
+  sim.raf = requestAnimationFrame(simLoop);
+}
+
+/* ---------- Interfaz ---------- */
+function actualizarCampos(){
+  const m = $("modo").value;
+  $("gOrden").style.display = m === "orden" ? "" : "none";
+  $("gRev").style.display = m === "rev" ? "" : "none";
+  $("gConsec").style.display = m === "consec" ? "" : "none";
+}
+const ejemplos = {
+  o1: {modo: "orden", A0: 1, k: 0.1, n: 1, tf: 50},
+  o2: {modo: "orden", A0: 1, k: 0.5, n: 2, tf: 30},
+  o0: {modo: "orden", A0: 1, k: 0.05, n: 0, tf: 30},
+  rev: {modo: "rev", A0: 1, B0: 0, kf: 0.4, kr: 0.1, tf: 20},
+  c1: {modo: "consec", A0: 1, k1: 0.5, k2: 0.1, tf: 40},
+  c2: {modo: "consec", A0: 1, k1: 0.1, k2: 0.5, tf: 40}
+};
+document.querySelectorAll("[data-ej]").forEach(b => b.addEventListener("click", () => {
+  const e = ejemplos[b.dataset.ej];
+  for (const id in e) $(id).value = e[id];
+  actualizarCampos(); calcular();
+}));
+$("modo").addEventListener("change", actualizarCampos);
+$("go").addEventListener("click", calcular);
+$("calcTop").addEventListener("click", calcular);
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") calcular(); });
+actualizarCampos();
+calcular();
+
+/* ---------- Simulación de colisiones (estilo PhET) ---------- */
+(function(){
+  const W = 520, H = 420, S0 = 1.6, RT = 0.008314, U = 2.494;   // U = RT a 300 K en kJ/mol (unidad de energía = kT a 300 K)
+  const SP = [{a: ["A"], r: 6}, {a: ["B", "C"], r: 9}, {a: ["A", "B"], r: 9}, {a: ["C"], r: 6}];
+  const AC = {A: "#ff9a3d", B: "#8b5cf6", C: "#35e0c0"}, NM = ["A", "BC", "AB", "C"], CL = ["#ff9a3d", "#8b5cf6", "#ff4d8d", "#35e0c0"];
+  let ps = [], hist = [], play = true, fr = 0, tries = 0, eff = 0, raf = 0;
+  const g = () => Math.sqrt(-2*Math.log(1 - Math.random()))*Math.cos(6.2832*Math.random());
+  const par = () => { const Ea = +$("cEa").value/U, dH = Math.min(+$("cDH").value/U, Ea - .4); return {T: +$("cT").value, Ea, dH, rev: $("cRev").checked}; };
+  const tmeas = () => ps.length ? 300*ps.reduce((s, a) => s + (a.vx*a.vx + a.vy*a.vy)/2, 0)/ps.length/(S0*S0) : +$("cT").value;
+
+  window.colAdd = (s, n = 10) => {
+    if (ps.length > 250) return;
+    const sg = S0*Math.sqrt(par().T/300);
+    for (let k = 0; k < n; k++) ps.push({x: 12 + Math.random()*(W - 24), y: 12 + Math.random()*(H - 24), vx: g()*sg, vy: g()*sg, s, th: Math.random()*6.28, w: (Math.random() - .5)*.12, f: 0});
+  };
+  window.colReset = () => { ps = []; hist = []; tries = eff = fr = 0; colAdd(0, 30); colAdd(1, 30); play = true; $("cPlay").textContent = "⏸ Pausar"; };
+  window.colToggle = () => { play = !play; $("cPlay").textContent = play ? "⏸ Pausar" : "▶ Reproducir"; };
+
+  function step(dt, P){
+    for (const a of ps){
+      const r = SP[a.s].r; a.x += a.vx*dt; a.y += a.vy*dt; a.th += a.w*dt;
+      if (a.x < r){ a.x = r; a.vx = Math.abs(a.vx); } else if (a.x > W - r){ a.x = W - r; a.vx = -Math.abs(a.vx); }
+      if (a.y < r){ a.y = r; a.vy = Math.abs(a.vy); } else if (a.y > H - r){ a.y = H - r; a.vy = -Math.abs(a.vy); }
+    }
+    const n = ps.length;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++){
+      let a = ps[i], b = ps[j], dx = b.x - a.x, dy = b.y - a.y;
+      const rr = SP[a.s].r + SP[b.s].r;
+      if (dx*dx + dy*dy >= rr*rr) continue;
+      const fw = (a.s === 0 && b.s === 1) || (a.s === 1 && b.s === 0), bw = (a.s === 2 && b.s === 3) || (a.s === 3 && b.s === 2);
+      if ((fw && a.s === 1) || (bw && a.s === 3)){ const t = a; a = b; b = t; dx = -dx; dy = -dy; }
+      const d = Math.sqrt(dx*dx + dy*dy) || 1e-6, nx = dx/d, ny = dy/d, ov = (rr - d)/2;
+      a.x -= nx*ov; a.y -= ny*ov; b.x += nx*ov; b.y += ny*ov;
+      const ua = a.vx*nx + a.vy*ny, ub = b.vx*nx + b.vy*ny, vn = ua - ub;
+      if (vn <= 0) continue;
+      const E = .25*vn*vn/(S0*S0);           // energía cinética relativa en el eje del choque
+      let ua2 = ub, ub2 = ua;                // choque elástico: se intercambian las componentes normales
+      if (fw) tries++;
+      if ((fw && E >= P.Ea) || (bw && P.rev && E >= P.Ea - P.dH)){
+        const v = 2*S0*Math.sqrt(E + (fw ? -P.dH : P.dH)), cm = (ua + ub)/2;
+        ua2 = cm - v/2; ub2 = cm + v/2;
+        if (fw){ a.s = 2; b.s = 3; eff++; } else { a.s = 0; b.s = 1; }
+        a.f = b.f = 1;
+      }
+      a.vx += (ua2 - ua)*nx; a.vy += (ua2 - ua)*ny; b.vx += (ub2 - ub)*nx; b.vy += (ub2 - ub)*ny;
+    }
+  }
+
+  function atom(c, x, y, r, col){ c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.strokeStyle = "rgba(255,255,255,.35)"; c.stroke(); }
+  function drawBox(){
+    const c = $("cvBox").getContext("2d"); c.clearRect(0, 0, W, H); c.lineWidth = 1;
+    for (const a of ps){
+      const sp = SP[a.s];
+      if (sp.a.length === 1) atom(c, a.x, a.y, sp.r, AC[sp.a[0]]);
+      else { const ox = Math.cos(a.th)*4.5, oy = Math.sin(a.th)*4.5; atom(c, a.x - ox, a.y - oy, 6, AC[sp.a[0]]); atom(c, a.x + ox, a.y + oy, 6, AC[sp.a[1]]); }
+      if (a.f > 0){ c.strokeStyle = `rgba(255,255,255,${a.f})`; c.lineWidth = 2; c.beginPath(); c.arc(a.x, a.y, 10 + (1 - a.f)*18, 0, 7); c.stroke(); c.lineWidth = 1; a.f = Math.max(0, a.f - .04); }
+    }
+  }
+  function drawEn(P){
+    const c = $("cvEn").getContext("2d"), w = 320, h = 230; c.clearRect(0, 0, w, h);
+    const lo = Math.min(0, P.dH) - .5, hi = P.Ea + 1.2, Y = e => h - 34 - (e - lo)/(hi - lo)*(h - 56), X = x => 36 + x*(w - 56);
+    c.strokeStyle = "rgba(255,255,255,.3)"; c.beginPath(); c.moveTo(36, 12); c.lineTo(36, h - 24); c.lineTo(w - 12, h - 24); c.stroke();
+    c.fillStyle = "#a99bd0"; c.font = "11px system-ui"; c.save(); c.translate(12, h/2 + 40); c.rotate(-Math.PI/2); c.fillText("Energía potencial", 0, 0); c.restore();
+    c.fillText("Coordenada de reacción", w/2 - 50, h - 8);
+    const B = P.Ea - P.dH/2, f = x => { const s = x*x*(3 - 2*x); return P.dH*s + B*Math.exp(-Math.pow((x - .5)/.13, 2)); };
+    c.strokeStyle = "#ffffff"; c.lineWidth = 2.5; c.beginPath();
+    for (let k = 0; k <= 100; k++){ const x = k/100; k ? c.lineTo(X(x), Y(f(x))) : c.moveTo(X(x), Y(f(x))); } c.stroke(); c.lineWidth = 1;
+    const kT = tmeas()/300; c.strokeStyle = "#35e0c0"; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(36, Y(kT)); c.lineTo(w - 12, Y(kT)); c.stroke(); c.setLineDash([]);
+    c.fillStyle = "#35e0c0"; c.fillText("energía térmica media (kT)", 44, Y(kT) - 4);
+    c.fillStyle = "#ff9a3d"; c.fillText("Eₐ = " + fmt(P.Ea*U, 3) + " kJ/mol", X(.56), Y(P.Ea) + 2);
+    c.fillStyle = P.dH < 0 ? "#ff4d8d" : "#8b5cf6"; c.fillText("ΔH = " + fmt(P.dH*U, 3) + " (" + (P.dH < 0 ? "exotérmica" : "endotérmica") + ")", X(.62), Y(P.dH) - 6);
+    c.fillStyle = "#a99bd0"; c.fillText("A + BC", X(.02), Y(0) + 14); c.fillText("AB + C", X(.8), Y(P.dH) + 14);
+  }
+  function drawHist(){
+    const c = $("cvHist").getContext("2d"), w = 1100, h = 190; c.clearRect(0, 0, w, h);
+    c.strokeStyle = "rgba(255,255,255,.2)"; c.strokeRect(50, 10, w - 70, h - 40);
+    c.fillStyle = "#a99bd0"; c.font = "13px system-ui"; c.fillText("moléculas", 4, 22); c.fillText("tiempo →", w - 90, h - 8);
+    const mx = Math.max(10, ...hist.map(r => Math.max(...r))), m = hist.length;
+    c.fillText(String(mx), 18, 26 + 10);
+    for (let s = 0; s < 4; s++){
+      c.strokeStyle = CL[s]; c.lineWidth = 2.5; c.beginPath();
+      hist.forEach((r, k) => { const x = 50 + k/Math.max(1, 599)*(w - 70), y = h - 30 - r[s]/mx*(h - 40); k ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+      c.fillStyle = CL[s]; c.fillRect(70 + s*90, h - 22, 10, 10); c.fillStyle = "#a99bd0"; c.fillText(NM[s], 86 + s*90, h - 13);
+    }
+    c.lineWidth = 1;
+  }
+  function loop(){
+    const P = par(); fr++;
+    if (play){ for (let k = 0; k < 3; k++) step(.5, P);
+      if (fr % 5 === 0){ const r = [0, 0, 0, 0]; ps.forEach(a => r[a.s]++); hist.push(r); if (hist.length > 600) hist.shift(); } }
+    drawBox(); drawEn(P);
+    if (fr % 5 === 0){
+      drawHist(); const r = [0, 0, 0, 0]; ps.forEach(a => r[a.s]++);
+      $("cPills").innerHTML = NM.map((n, s) => `<span class="cpill"><span class="dot" style="background:${CL[s]}"></span>${n} = <b>${r[s]}</b></span>`).join("");
+      $("cTv").textContent = P.T + " K"; $("cTm").textContent = fmt(tmeas(), 4) + " K";
+      $("cEav").textContent = fmt(P.Ea*U, 3) + " kJ/mol"; $("cDHv").textContent = fmt(P.dH*U, 3) + " kJ/mol";
+      $("cArr").textContent = fmt(Math.exp(-P.Ea*U/(RT*tmeas())), 3);
+      $("cEff").textContent = tries ? `${eff} de ${tries} (${fmt(eff/tries*100, 3)} %)` : "—";
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  $("cT").addEventListener("input", () => { const f = Math.sqrt(+$("cT").value/tmeas()); ps.forEach(a => { a.vx *= f; a.vy *= f; }); });
+  colReset(); raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
